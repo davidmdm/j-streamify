@@ -1,6 +1,6 @@
 {
   "name": "j-streamify",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Used to stringify javascript objects to json strings as a stream",
   "main": "index.js",
   "dependencies": {},

@@ -55,10 +55,10 @@ module.exports = class JStream extends Readable {
         return;
       }
 
-      if (typeof value === 'object') {
+      if (typeof value === 'object' && value !== null) {
         return yield* objectGenerator(value);
       }
-
+      
       yield JSON.stringify(value);
 
     }
