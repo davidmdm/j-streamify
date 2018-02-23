@@ -1,5 +1,0 @@
-This is a text file
-
-that has new lines in it
-
-and "some text in quotation marks"
