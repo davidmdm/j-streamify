@@ -4,7 +4,27 @@ const { Readable } = require('stream');
 
 module.exports = class JStream extends Readable {
 
-  constructor(obj) {
+  constructor(obj, replacer) {
+
+    if (!replacer) {
+      replacer = function(_, value) {
+        return value;
+      }
+    }
+
+    if (typeof replacer !== 'function' && !Array.isArray(replacer)) {
+      throw new Error(`Expecting replacer to be a function or an array not ${typeof replacer}`);
+    }
+
+    if (Array.isArray(replacer)) {
+      replacer = function(key, value) {
+        if (replacer.includes(key)) {
+          return value;
+        }
+        return undefined;
+      }
+    }
+
     super({ objectMode: true });
     this.jsonIterator = jsonGenerator(obj);
 
@@ -31,7 +51,7 @@ module.exports = class JStream extends Readable {
         });
         value.once('error', err => self.emit('error', err));
         yield '"';
-        yield '"'
+        yield '"';
         return;
       }
 
@@ -55,14 +75,31 @@ module.exports = class JStream extends Readable {
     }
 
     function* objectGenerator(obj) {
+
       yield '{';
+
       const keys = Object.keys(obj);
+
       for (let i = 0; i < keys.length; i++) {
+
+        if (typeof obj[keys[i]] === 'function') {
+          continue;
+        }
+
+        const value = replacer.call(obj, keys[i], obj[keys[i]]);
+
+        if (value === undefined) {
+          continue;
+        }
+
         yield `"${keys[i]}":`;
-        yield* jsonGenerator(obj[keys[i]]);
+
+        yield* jsonGenerator(value);
+
         if (i !== keys.length - 1) {
           yield ',';
         }
+
       }
       yield '}';
     }
@@ -72,7 +109,7 @@ module.exports = class JStream extends Readable {
   _read() {
 
     if (this.src) {
-      return this.src.once('data', x => this.push(x.toString()));
+      return this.src.once('data', x => this.push(JSON.stringify(x.toString()).slice(1, -1)));
     }
 
     const { value, done } = this.jsonIterator.next();
@@ -93,4 +130,4 @@ module.exports = class JStream extends Readable {
     return this.push(value.toString());
   }
 
-}
+};
