@@ -26,6 +26,13 @@ const payload = new JStream({
 payload.pipe(request/({ uri: '/destination', method: 'POST', json: true });
 ```
 
+## Tests
+From the j-streamify root directory run:
+```
+npm install 
+npm run test
+```
+This will generate a coverage report inside the root directory in a new directory called coverage
 
 ## License
 

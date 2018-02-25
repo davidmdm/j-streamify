@@ -17,8 +17,12 @@ module.exports = class JStream extends Readable {
     }
 
     if (Array.isArray(replacer)) {
+      const validKeys = Array.from(replacer);
       replacer = function(key, value) {
-        if (replacer.includes(key)) {
+        if(!key) {
+          return value;
+        }
+        if (validKeys.includes(key)) {
           return value;
         }
         return undefined;
@@ -90,28 +94,25 @@ module.exports = class JStream extends Readable {
       // on the object itself as the value and undefined as the key.
       const obj = Object.assign({}, replacer.call(value, undefined, value));
 
-      const keys = Object.keys(obj);
+      let keys = Object.keys(obj);
+
+      for (const key of keys) {
+        const value = replacer.call(obj, key, obj[key]);
+        if (value === undefined || value instanceof Function) {
+          delete obj[key];
+          continue;
+        }
+        obj[key] = value;
+      }
+
+      keys = Object.keys(obj);
 
       for (let i = 0; i < keys.length; i++) {
-
-        if (typeof obj[keys[i]] === 'function') {
-          continue;
-        }
-
-        const value = replacer.call(obj, keys[i], obj[keys[i]]);
-
-        if (value === undefined) {
-          continue;
-        }
-
         yield `"${keys[i]}":`;
-
-        yield* jsonGenerator(value);
-
+        yield* jsonGenerator(obj[keys[i]]);
         if (i !== keys.length - 1) {
           yield ',';
         }
-
       }
       yield '}';
     }
