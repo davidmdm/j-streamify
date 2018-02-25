@@ -44,6 +44,11 @@ module.exports = class JStream extends Readable {
       }
 
       if (value instanceof Readable) {
+
+        if (value._readableState.objectMode) {
+          return self.emit('error', new Error('Readable streams in objectMode are not supported'));
+        }
+
         self.src = value;
         value.once('end', () => {
           self.src = null;
@@ -66,7 +71,10 @@ module.exports = class JStream extends Readable {
     function* arrayGenerator(arr) {
       yield '[';
       for (let i = 0; i < arr.length; i++) {
-        yield* jsonGenerator(arr[i]);
+
+        const value = arr[i] === undefined ? null : arr[i];
+
+        yield* jsonGenerator(value);
         if (i !== arr.length - 1) {
           yield ',';
         }
@@ -74,9 +82,13 @@ module.exports = class JStream extends Readable {
       yield ']';
     }
 
-    function* objectGenerator(obj) {
+    function* objectGenerator(value) {
 
       yield '{';
+
+      // As per JSON.stringify replacer param documentation, the replacer is called initially
+      // on the object itself as the value and undefined as the key.
+      const obj = Object.assign({}, replacer.call(value, undefined, value));
 
       const keys = Object.keys(obj);
 
@@ -116,6 +128,10 @@ module.exports = class JStream extends Readable {
 
     if (done) {
       return this.push(null);
+    }
+
+    if (value === undefined) {
+      return this.push('');
     }
 
     if (this.pMode === true) {
