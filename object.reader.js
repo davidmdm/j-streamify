@@ -1,7 +1,6 @@
 'use strict';
 
 const { Readable } = require('stream');
-const JStream = require('./index.js');
 
 module.exports = class ObjectStreamStringify extends Readable {
 
@@ -13,12 +12,16 @@ module.exports = class ObjectStreamStringify extends Readable {
       let done = false;
       let first = true;
 
-      objectStream.on('data', () => first = false);
+      objectStream.once('data', () => first = false);
       objectStream.on('end', () => done = true);
 
       const getNextObj = function () {
         return new Promise((resolve, reject) => {
-          objectStream.once('data', resolve);
+          objectStream.resume();
+          objectStream.once('data', data => {
+            objectStream.pause();
+            resolve(data);
+          });
           objectStream.once('error', reject);
         });
       };
@@ -34,6 +37,8 @@ module.exports = class ObjectStreamStringify extends Readable {
   }
 
   _read() {
+
+    const JStream = require('./index.js');
 
     if (this.jStream) {
       this.jStream.resume();

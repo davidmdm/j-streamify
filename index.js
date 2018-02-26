@@ -1,15 +1,15 @@
 'use strict';
 
 const { Readable } = require('stream');
+const ObjectReader = require('./object.reader');
 
 module.exports = class JStream extends Readable {
 
   constructor(obj, replacer) {
-    const ObjectReader = require('./object.reader');
 
 
     if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
-      replacer = function(_, value) {
+      replacer = function (_, value) {
         return value;
       }
     }
@@ -60,7 +60,7 @@ module.exports = class JStream extends Readable {
       if (typeof value === 'object' && value !== null) {
         return yield* objectGenerator(value);
       }
-      
+
       yield JSON.stringify(value);
 
     }
@@ -146,7 +146,10 @@ module.exports = class JStream extends Readable {
       this.src.resume();
       return this.src.once('data', x => {
         this.src.pause();
-        return this.push(JSON.stringify(x.toString()).slice(1, -1))
+        if(this.src instanceof ObjectReader){
+          return this.push(x);
+        }
+        return this.push(JSON.stringify(x.toString()).slice(1, -1));
       });
     }
 
