@@ -1,6 +1,7 @@
 'use strict';
 
 const { Readable } = require('stream');
+const ObjectReader = require('./object.reader');
 
 module.exports = class JStream extends Readable {
 
@@ -32,18 +33,22 @@ module.exports = class JStream extends Readable {
 
       if (value instanceof Readable) {
 
-        if (value._readableState.objectMode) {
-          return self.emit('error', new Error('Readable streams in objectMode are not supported'));
-        }
-
-        self.src = value;
         value.once('end', () => {
           self.src = null;
           self._read();
         });
         value.once('error', err => self.emit('error', err));
-        yield '"';
-        yield '"';
+
+        if (value._readableState.objectMode) {
+          self.src = new ObjectReader(value);
+          yield '[';
+          yield ']';
+        } else {
+          self.src = value;
+          yield '"';
+          yield '"';
+        }
+
         return;
       }
 
