@@ -16,20 +16,7 @@ module.exports = class JStream extends Readable {
       throw new Error(`Expecting replacer to be a function or an array not ${typeof replacer}`);
     }
 
-    if (Array.isArray(replacer)) {
-      const validKeys = Array.from(replacer);
-      replacer = function(key, value) {
-        if(!key) {
-          return value;
-        }
-        if (validKeys.includes(key)) {
-          return value;
-        }
-        return undefined;
-      }
-    }
-
-    super({ objectMode: true });
+    super();
     this.jsonIterator = jsonGenerator(obj);
 
     const self = this;
@@ -72,13 +59,28 @@ module.exports = class JStream extends Readable {
 
     }
 
-    function* arrayGenerator(arr) {
+    function* arrayGenerator(value) {
+
+      let arr;
+
+      if (replacer instanceof Function) {
+        arr = replacer
+          .call(value, undefined, value)
+          .map((x, i, a) => {
+            const value = replacer.call(a, Number(i).toString(), x);
+            if (value === undefined || value instanceof Function) {
+              return null;
+            }
+            return value;
+          });
+      } else {
+        arr = value.map(x => (x === undefined || x instanceof Function) ? null : x);
+      }
+
       yield '[';
+
       for (let i = 0; i < arr.length; i++) {
-
-        const value = arr[i] === undefined ? null : arr[i];
-
-        yield* jsonGenerator(value);
+        yield* jsonGenerator(arr[i]);
         if (i !== arr.length - 1) {
           yield ',';
         }
@@ -92,20 +94,33 @@ module.exports = class JStream extends Readable {
 
       // As per JSON.stringify replacer param documentation, the replacer is called initially
       // on the object itself as the value and undefined as the key.
-      const obj = Object.assign({}, replacer.call(value, undefined, value));
 
-      let keys = Object.keys(obj);
+      let obj;
 
-      for (const key of keys) {
-        const value = replacer.call(obj, key, obj[key]);
-        if (value === undefined || value instanceof Function) {
-          delete obj[key];
-          continue;
+      if (replacer instanceof Function) {
+        obj = Object.assign({}, replacer.call(value, undefined, value));
+
+        for (const key in obj) {
+          const value = replacer.call(obj, key, obj[key]);
+          if (value === undefined || value instanceof Function) {
+            delete obj[key];
+            continue;
+          }
+          obj[key] = value;
         }
-        obj[key] = value;
       }
 
-      keys = Object.keys(obj);
+      if (Array.isArray(replacer)) {
+        obj = {};
+        for (const key in value) {
+          if (value[key] === undefined || value[key] instanceof Function || !replacer.includes(key)) {
+            continue;
+          }
+          obj[key] = value[key];
+        }
+      }
+
+      const keys = Object.keys(obj);
 
       for (let i = 0; i < keys.length; i++) {
         yield `"${keys[i]}":`;
@@ -139,12 +154,12 @@ module.exports = class JStream extends Readable {
       return value
         .then(x => {
           const { value } = this.jsonIterator.next(x);
-          return this.push(value.toString());
+          return this.push(value);
         })
         .catch(err => this.emit('error', err));
     }
 
-    return this.push(value.toString());
+    return this.push(value);
   }
 
 };

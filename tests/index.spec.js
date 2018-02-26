@@ -38,6 +38,10 @@ describe('j-streamify tests', () => {
       return JStream2Promise(null).then(result => assert.equal(result, 'null'));
     });
 
+    it('NaN should yield \'null\'', () => {
+      return JStream2Promise(NaN).then(result => assert.equal(result, 'null'));
+    });
+
     it('functions should yield empty string', () => {
       return JStream2Promise(function () {
       }).then(result => assert.equal(result, ''));
@@ -200,7 +204,7 @@ describe('j-streamify tests', () => {
 
   });
 
-  describe('Stringify with a replacer', () => {
+  describe('Stringify Object with a replacer', () => {
 
     describe('Array replacer', () => {
 
@@ -208,6 +212,25 @@ describe('j-streamify tests', () => {
         const object = {a: 1, b: 2, c: 3};
         return JStream2Promise(object, ['a'])
           .then(result => assert.equal(result, JSON.stringify({a: 1})));
+      });
+
+      it('multiple levels deep', () => {
+        const object = {
+          a: 1,
+          b: {
+            a: 'nested',
+            c: 'should not be stringified',
+          },
+          c: 3,
+        };
+
+        const expected = JSON.stringify({
+          a: 1,
+          b: {a: 'nested'},
+        });
+
+        return JStream2Promise(object, ['a', 'b'])
+          .then(result => assert.equal(result, expected));
       });
 
       it('No match of keys and arrays', () => {
@@ -218,7 +241,30 @@ describe('j-streamify tests', () => {
 
     });
 
-    //describe()
+    describe('Function replacer', () => {
+
+      it('replacer should double values', () => {
+
+        const replacer = function(key, value) {
+          return key ? 2 * value : value;
+        };
+
+        const obj = {
+          a: 1,
+          b: 2,
+        };
+
+        const expected = JSON.stringify({
+          a: 2,
+          b: 4,
+        });
+
+        return JStream2Promise(obj, replacer)
+          .then(result => assert.equal(result, expected));
+
+      });
+
+    });
 
   });
 
