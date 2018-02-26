@@ -1,11 +1,12 @@
 'use strict';
 
 const { Readable } = require('stream');
-const ObjectReader = require('./object.reader');
 
 module.exports = class JStream extends Readable {
 
   constructor(obj, replacer) {
+    const ObjectReader = require('./object.reader');
+
 
     if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
       replacer = function(_, value) {
@@ -33,17 +34,21 @@ module.exports = class JStream extends Readable {
 
       if (value instanceof Readable) {
 
-        value.once('end', () => {
-          self.src = null;
-          self._read();
-        });
-        value.once('error', err => self.emit('error', err));
-
         if (value._readableState.objectMode) {
           self.src = new ObjectReader(value);
+          self.src.once('end', () => {
+            self.src = null;
+            self._read();
+          });
+          self.src.once('error', err => self.emit('error', err));
           yield '[';
           yield ']';
         } else {
+          value.once('end', () => {
+            self.src = null;
+            self._read();
+          });
+          value.once('error', err => self.emit('error', err));
           self.src = value;
           yield '"';
           yield '"';
@@ -138,7 +143,9 @@ module.exports = class JStream extends Readable {
   _read() {
 
     if (this.src) {
-      return this.src.once('data', x => this.push(JSON.stringify(x.toString()).slice(1, -1)));
+      return this.src.once('data', x => {
+        this.push(JSON.stringify(x.toString()).slice(1, -1))
+      });
     }
 
     const { value, done } = this.jsonIterator.next();

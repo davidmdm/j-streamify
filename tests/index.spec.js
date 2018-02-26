@@ -82,18 +82,14 @@ describe('j-streamify tests', () => {
         .then(result => assert.equal(result, JSON.stringify(data.join(''))));
     });
 
-    it('Readable streams in objectMode will throw an error', done => {
+    it('Readable streams in objectMode will throw an error', () => {
       const stream = new Readable({objectMode: true});
-      stream.push(1);
-      stream.push(true);
-      stream.push({});
+      const data = [1, true, {}];
+      data.forEach(x => stream.push(x));
       stream.push(null);
 
-      JStream2Promise(stream)
-        .then(() => done(new Error('Reading from objectMode streams is not supported')))
-        .catch(err => assert.equal(err.message, 'Readable streams in objectMode are not supported'))
-        .then(() => done())
-        .catch(done);
+      return JStream2Promise(stream)
+        .then(result => assert.equal(result, JSON.stringify(JSON.stringify(data))));
     });
 
     it('emits error if underlying readable stream does', done => {

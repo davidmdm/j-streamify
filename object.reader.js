@@ -1,9 +1,9 @@
 'use strict';
 
 const { Readable } = require('stream');
-const JStream = require('./index');
+const JStream = require('./index.js');
 
-class ObjectStreamStringify extends Readable {
+module.exports = class ObjectStreamStringify extends Readable {
 
   constructor(objectStream) {
     super();
@@ -29,6 +29,8 @@ class ObjectStreamStringify extends Readable {
         }
         yield getNextObj();
       }
+
+      console.log('hmm');
       
     })();
   }
@@ -36,12 +38,9 @@ class ObjectStreamStringify extends Readable {
   _read() {
 
     if (this.jStream) {
-      const { value, done } = this.jStream.next();
-      if (done) {
-        this.jStream = null;
-      } else {
-        return this.push(value);
-      }
+      return this.jStream.once('data', data => {
+        this.push(data)
+      });
     }
 
     const { value, done } = this.iterator.next();
@@ -58,6 +57,10 @@ class ObjectStreamStringify extends Readable {
       return value
         .then(result => {
           this.jStream = new JStream(result);
+          this.jStream.on('end', () => {
+            this.jStream = null;
+            this._read();
+          });
           this._read();
         })
         .catch(err => this.emit('error', err));
