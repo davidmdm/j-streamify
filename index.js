@@ -143,8 +143,10 @@ module.exports = class JStream extends Readable {
   _read() {
 
     if (this.src) {
+      this.src.resume();
       return this.src.once('data', x => {
-        this.push(JSON.stringify(x.toString()).slice(1, -1))
+        this.src.pause();
+        return this.push(JSON.stringify(x.toString()).slice(1, -1))
       });
     }
 

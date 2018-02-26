@@ -30,16 +30,16 @@ module.exports = class ObjectStreamStringify extends Readable {
         yield getNextObj();
       }
 
-      console.log('hmm');
-      
     })();
   }
 
   _read() {
 
     if (this.jStream) {
+      this.jStream.resume();
       return this.jStream.once('data', data => {
-        this.push(data)
+        this.jStream.pause();
+        return this.push(data)
       });
     }
 
