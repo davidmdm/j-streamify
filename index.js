@@ -6,14 +6,10 @@ module.exports = class JStream extends Readable {
 
   constructor(obj, replacer) {
 
-    if (!replacer) {
+    if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
       replacer = function(_, value) {
         return value;
       }
-    }
-
-    if (typeof replacer !== 'function' && !Array.isArray(replacer)) {
-      throw new Error(`Expecting replacer to be a function or an array not ${typeof replacer}`);
     }
 
     super();

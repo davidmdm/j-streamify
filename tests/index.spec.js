@@ -179,9 +179,7 @@ describe('j-streamify tests', () => {
     });
 
     it('should stringify regular arrays', () => {
-
-      const array = [1, true, 'string', undefined, null];
-
+      const array = [1, true, 'string', undefined, null, function() {}, NaN];
       return JStream2Promise(array)
         .then(result => assert.equal(result, JSON.stringify(array)));
     });
@@ -245,7 +243,7 @@ describe('j-streamify tests', () => {
 
       it('replacer should double values', () => {
 
-        const replacer = function(key, value) {
+        const replacer = function (key, value) {
           return key ? 2 * value : value;
         };
 
@@ -264,6 +262,22 @@ describe('j-streamify tests', () => {
 
       });
 
+    });
+
+  });
+
+  describe('Stringify array with a replacer', () => {
+
+    it('should have no effect using a array replacer', () => {
+      const array = ['a', 'b', 'c', undefined];
+      return JStream2Promise(array, ['d', 'e', 'f'])
+        .then(result => assert.equal(result, JSON.stringify(array)));
+    });
+
+    it('should modify error with a function replacer', () => {
+      const array = [1, 2, 3];
+      return JStream2Promise(array, (key, value) => key ? 2 * value : value)
+        .then(result => assert.equal(result, JSON.stringify([2, 4, 6])));
     });
 
   });
