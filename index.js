@@ -133,7 +133,11 @@ module.exports = class JStream extends Readable {
   _read() {
 
     if (this.src) {
-      return this.src.once('data', x => this.push(JSON.stringify(x.toString()).slice(1, -1)));
+      this.src.resume();
+      return this.src.once('data', x => {
+        this.src.pause();
+        this.push(JSON.stringify(x.toString()).slice(1, -1));
+      });
     }
 
     const { value, done } = this.jsonIterator.next();
