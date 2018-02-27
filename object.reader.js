@@ -4,8 +4,10 @@ const { Readable } = require('stream');
 
 module.exports = class ObjectStreamStringify extends Readable {
 
-  constructor(objectStream) {
+  constructor(objectStream, replacer) {
     super();
+
+    this.replacer = replacer;
 
     this.iterator = (function* () {
 
@@ -51,27 +53,30 @@ module.exports = class ObjectStreamStringify extends Readable {
     const { value, done } = this.iterator.next();
 
     if (done) {
-      this.push(null);
-    }
-
-    if (typeof value === 'string') {
-      return this.push(value);
+      return this.push(null);
     }
 
     if (value instanceof Promise) {
       return value
         .then(result => {
-          this.jStream = new JStream(result);
+
+          if(result instanceof Function || result === undefined || Number.isNaN(result)) {
+            this.jStream = new JStream(null);
+          } else {
+            this.jStream = new JStream(result, this.replacer);
+          }
+
           this.jStream.on('end', () => {
             this.jStream = null;
-            this._read();
+            return this._read();
           });
-          this._read();
+          return this._read();
         })
         .catch(err => this.emit('error', err));
     }
 
+    return this.push(value);
+
   }
 
-
-}
+};

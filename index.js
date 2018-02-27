@@ -3,10 +3,10 @@
 const { Readable } = require('stream');
 const ObjectReader = require('./object.reader');
 
-module.exports = class JStream extends Readable {
+
+class JStream extends Readable {
 
   constructor(obj, replacer) {
-
 
     if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
       replacer = function (_, value) {
@@ -35,7 +35,7 @@ module.exports = class JStream extends Readable {
       if (value instanceof Readable) {
 
         if (value._readableState.objectMode) {
-          self.src = new ObjectReader(value);
+          self.src = new ObjectReader(value, replacer);
           self.src.once('end', () => {
             self.src = null;
             self._read();
@@ -176,3 +176,5 @@ module.exports = class JStream extends Readable {
   }
 
 };
+
+module.exports = JStream;

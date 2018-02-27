@@ -72,40 +72,77 @@ describe('j-streamify tests', () => {
 
   describe('Readable stream', () => {
 
-    it('stringify a readable stream', () => {
-      const stream = new Readable();
-      const data = ['some data', 'to stringify', 'with funky characters\r', '\n \t" " " ` ` @ '];
-      data.forEach(x => stream.push(x));
-      stream.push(null);
+    describe('Object Mode - false', () => {
 
-      return JStream2Promise(stream)
-        .then(result => assert.equal(result, JSON.stringify(data.join(''))));
-    });
+      it('stringify a readable stream', () => {
+        const stream = new Readable();
+        const data = ['some data', 'to stringify', 'with funky characters\r', '\n \t" " " ` ` @ '];
+        data.forEach(x => stream.push(x));
+        stream.push(null);
 
-    it('Readable streams in objectMode', () => {
-      const stream = new Readable({objectMode: true});
-      const data = [1, true, {}, 'string'];
-      data.forEach(x => stream.push(x));
-      stream.push(null);
-
-      return JStream2Promise(stream)
-        .then(result => assert.equal(result, JSON.stringify(data)));
-    });
-
-    it('emits error if underlying readable stream does', done => {
-
-      const stream = new Readable({
-        read() {
-          this.emit('error', new Error('src stream error'));
-        },
+        return JStream2Promise(stream)
+          .then(result => assert.equal(result, JSON.stringify(data.join(''))));
       });
 
-      JStream2Promise(stream)
-        .then(() => done(new Error('Should fail when stream resource emits error')))
-        .catch(err => assert.equal(err.message, 'src stream error'))
-        .then(() => done())
-        .catch(done);
-    })
+      it('emits error if underlying readable stream does', done => {
+
+        const stream = new Readable({
+          read() {
+            this.emit('error', new Error('src stream error'));
+          },
+        });
+
+        JStream2Promise(stream)
+          .then(() => done(new Error('Should fail when stream resource emits error')))
+          .catch(err => assert.equal(err.message, 'src stream error'))
+          .then(() => done())
+          .catch(done);
+      });
+
+    });
+
+    describe('Object mode - true', () => {
+
+      it('Readable streams in objectMode', () => {
+        const stream = new Readable({objectMode: true});
+        const data = [1, true, {}, '"string"', function() {}, undefined, NaN];
+        data.forEach(x => stream.push(x));
+        stream.push(null);
+
+        return JStream2Promise(stream)
+          .then(result => assert.equal(result, JSON.stringify(data)));
+      });
+
+      it('with replacer', () => {
+
+        const objects = Array.from(new Array(5)).map(() => ({a:1, b: 2, c: 3}));
+        const expected = Array.from(new Array(5)).map(() => ({a:1, b: 2}));
+        const stream = new Readable({ objectMode: true });
+        objects.forEach(x => stream.push(x));
+        stream.push(null);
+
+        return JStream2Promise(stream, ['a', 'b'])
+          .then(result => assert.equal(result, JSON.stringify(expected)));
+
+      });
+
+      it('emits error if underlying readable stream does', done => {
+
+        const stream = new Readable({
+          objectMode: true,
+          read() {
+            this.emit('error', new Error('src stream error'));
+          },
+        });
+
+        JStream2Promise(stream)
+          .then(() => done(new Error('Should fail when stream resource emits error')))
+          .catch(err => assert.equal(err.message, 'src stream error'))
+          .then(() => done())
+          .catch(done);
+      });
+
+    });
 
   });
 
