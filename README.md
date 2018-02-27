@@ -31,8 +31,12 @@ payload.pipe(request({ uri: '/destination', method: 'POST', json: true });
 Converting a stream of objects to a stream of an equivalent JSON string:
 
 ```javascript
-const writeStream = fs.createWriteStream('users.json');
-new JStream(knex('users').select('*').stream()).pipe(writeStream);
+const writeStream = fs.createWriteStream('myCollection.json');
+
+// lean() object is used because mongo documents are circular and will cause the stream to leak memory very quickly.
+const objectStream = mongoCollection.find({}).lean();
+
+new JStream(objectStream).pipe(writeStream);
 ```
 
 
