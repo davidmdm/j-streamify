@@ -1,13 +1,14 @@
 'use strict';
 
 const { Readable } = require('stream');
+const ObjectReader = require('./object.reader');
 
-module.exports = class JStream extends Readable {
+class JStream extends Readable {
 
   constructor(obj, replacer) {
 
     if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
-      replacer = function(_, value) {
+      replacer = function (_, value) {
         return value;
       }
     }
@@ -33,24 +34,32 @@ module.exports = class JStream extends Readable {
       if (value instanceof Readable) {
 
         if (value._readableState.objectMode) {
-          return self.emit('error', new Error('Readable streams in objectMode are not supported'));
+          self.src = new ObjectReader(value, replacer);
+          self.src.once('end', () => {
+            self.src = null;
+            self._read();
+          });
+          self.src.once('error', err => self.emit('error', err));
+          yield '[';
+          yield ']';
+        } else {
+          value.once('end', () => {
+            self.src = null;
+            self._read();
+          });
+          value.once('error', err => self.emit('error', err));
+          self.src = value;
+          yield '"';
+          yield '"';
         }
 
-        self.src = value;
-        value.once('end', () => {
-          self.src = null;
-          self._read();
-        });
-        value.once('error', err => self.emit('error', err));
-        yield '"';
-        yield '"';
         return;
       }
 
       if (typeof value === 'object' && value !== null) {
         return yield* objectGenerator(value);
       }
-      
+
       yield JSON.stringify(value);
 
     }
@@ -136,7 +145,10 @@ module.exports = class JStream extends Readable {
       this.src.resume();
       return this.src.once('data', x => {
         this.src.pause();
-        this.push(JSON.stringify(x.toString()).slice(1, -1));
+        if(this.src instanceof ObjectReader){
+          return this.push(x);
+        }
+        return this.push(JSON.stringify(x.toString()).slice(1, -1));
       });
     }
 
@@ -163,3 +175,5 @@ module.exports = class JStream extends Readable {
   }
 
 };
+
+module.exports = JStream;
