@@ -3,9 +3,15 @@
 const { Readable } = require('stream');
 const ObjectReader = require('./object.reader');
 
+const toJSON = function toJSON(value) {
+  return (value && value.toJSON instanceof Function) ? value.toJSON() : value;
+}
+
 class JStream extends Readable {
 
   constructor(obj, replacer) {
+
+    obj = toJSON(obj);
 
     if (!replacer || (typeof replacer !== 'function' && !Array.isArray(replacer))) {
       replacer = function (_, value) {
@@ -85,7 +91,7 @@ class JStream extends Readable {
       yield '[';
 
       for (let i = 0; i < arr.length; i++) {
-        yield* jsonGenerator(arr[i]);
+        yield* jsonGenerator(toJSON(arr[i]));
         if (i !== arr.length - 1) {
           yield ',';
         }
@@ -129,7 +135,7 @@ class JStream extends Readable {
 
       for (let i = 0; i < keys.length; i++) {
         yield `"${keys[i]}":`;
-        yield* jsonGenerator(obj[keys[i]]);
+        yield* jsonGenerator(toJSON(obj[keys[i]]));
         if (i !== keys.length - 1) {
           yield ',';
         }
@@ -145,7 +151,7 @@ class JStream extends Readable {
       this.src.resume();
       return this.src.once('data', x => {
         this.src.pause();
-        if(this.src instanceof ObjectReader){
+        if (this.src instanceof ObjectReader) {
           return this.push(x);
         }
         return this.push(JSON.stringify(x.toString()).slice(1, -1));
