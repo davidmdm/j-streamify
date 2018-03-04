@@ -1,8 +1,8 @@
 'use strict';
 
-const {assert} = require('chai');
+const { assert } = require('chai');
 const JStream = require('../index');
-const {Readable} = require('stream');
+const { Readable } = require('stream');
 
 const JStream2Promise = function readFromJStream(value, replacer) {
   const stream = new JStream(value, replacer);
@@ -104,8 +104,8 @@ describe('j-streamify tests', () => {
     describe('Object mode - true', () => {
 
       it('Readable streams in objectMode', () => {
-        const stream = new Readable({objectMode: true});
-        const data = [1, true, {}, '"string"', function() {}, undefined, NaN];
+        const stream = new Readable({ objectMode: true });
+        const data = [1, true, {}, '"string"', function () { }, undefined, NaN];
         data.forEach(x => stream.push(x));
         stream.push(null);
 
@@ -115,8 +115,8 @@ describe('j-streamify tests', () => {
 
       it('with replacer', () => {
 
-        const objects = Array.from(new Array(5)).map(() => ({a:1, b: 2, c: 3}));
-        const expected = Array.from(new Array(5)).map(() => ({a:1, b: 2}));
+        const objects = Array.from(new Array(5)).map(() => ({ a: 1, b: 2, c: 3 }));
+        const expected = Array.from(new Array(5)).map(() => ({ a: 1, b: 2 }));
         const stream = new Readable({ objectMode: true });
         objects.forEach(x => stream.push(x));
         stream.push(null);
@@ -176,7 +176,7 @@ describe('j-streamify tests', () => {
       };
 
       return JStream2Promise(object)
-        .then(result => assert.equal(result, JSON.stringify({a: 1, b: 2})));
+        .then(result => assert.equal(result, JSON.stringify({ a: 1, b: 2 })));
 
     });
 
@@ -203,6 +203,23 @@ describe('j-streamify tests', () => {
       return JStream2Promise(object).then(result => assert.equal(result, expectedObject));
     });
 
+    it('should use the object return by toJSON', () => {
+
+      const obj = {
+        somekey: 1,
+        someOtherKey: 2,
+        toJSON: () => ({
+          a: 1,
+          b: 2,
+        }),
+      };
+
+      const expected = JSON.stringify({ a: 1, b: 2 });
+
+      return JStream2Promise(obj)
+        .then(result => assert.equal(result, expected));
+    });
+
   });
 
   describe('Arrays', () => {
@@ -212,7 +229,7 @@ describe('j-streamify tests', () => {
     });
 
     it('should stringify regular arrays', () => {
-      const array = [1, true, 'string', undefined, null, function() {}, NaN];
+      const array = [1, true, 'string', undefined, null, function () { }, NaN];
       return JStream2Promise(array)
         .then(result => assert.equal(result, JSON.stringify(array)));
     });
@@ -233,6 +250,20 @@ describe('j-streamify tests', () => {
       return JStream2Promise(array).then(result => assert.equal(result, expected));
     });
 
+    it('should use the toJSON of the elemts', () => {
+
+      const array = [
+        { index: 1, toJSON: () => ({ a: 1 }) },
+        { index: 1, toJSON: () => ({ a: 2 }) },
+      ];
+
+      const expected = JSON.stringify([{ a: 1 }, { a: 2 }]);
+
+      return JStream2Promise(array)
+        .then(result => assert.equal(result, expected));
+
+    })
+
   });
 
   describe('Stringify Object with a replacer', () => {
@@ -240,9 +271,9 @@ describe('j-streamify tests', () => {
     describe('Array replacer', () => {
 
       it('partial match of keys and array', () => {
-        const object = {a: 1, b: 2, c: 3};
+        const object = { a: 1, b: 2, c: 3 };
         return JStream2Promise(object, ['a'])
-          .then(result => assert.equal(result, JSON.stringify({a: 1})));
+          .then(result => assert.equal(result, JSON.stringify({ a: 1 })));
       });
 
       it('multiple levels deep', () => {
@@ -257,7 +288,7 @@ describe('j-streamify tests', () => {
 
         const expected = JSON.stringify({
           a: 1,
-          b: {a: 'nested'},
+          b: { a: 'nested' },
         });
 
         return JStream2Promise(object, ['a', 'b'])
@@ -265,7 +296,7 @@ describe('j-streamify tests', () => {
       });
 
       it('No match of keys and arrays', () => {
-        const object = {a: 1, b: 2, c: 3};
+        const object = { a: 1, b: 2, c: 3 };
         return JStream2Promise(object, ['d', 'e', 'f'])
           .then(result => assert.equal(result, '{}'));
       });
