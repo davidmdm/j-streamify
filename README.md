@@ -17,6 +17,7 @@ npm install j-streamify --save
 use case: Sending file on disk to a legacy api as json:
 
 ```javascript
+const request = require('request');
 const JStream = require('j-streamify');
 
 const payload = new JStream({
@@ -32,13 +33,10 @@ Converting a stream of objects to a stream of an equivalent JSON string:
 
 ```javascript
 const writeStream = fs.createWriteStream('myCollection.json');
-
-// lean() object is used because mongo documents are circular and will cause the stream to leak memory very quickly.
-const objectStream = mongoCollection.find({}).lean();
+const objectStream = mongoCollection.find({});
 
 new JStream(objectStream).pipe(writeStream);
 ```
-
 
 ## Tests
 From the j-streamify root directory run:
