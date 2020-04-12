@@ -31,18 +31,6 @@ async function* objectGenerator(value, replacer) {
   yield '{';
 
   const obj = (() => {
-    if (typeof replacer === 'function') {
-      const obj = Object.assign({}, replacer.call(value, undefined, value));
-      for (const key in obj) {
-        const value = replacer.call(obj, key, obj[key]);
-        if (value === undefined || value instanceof Function) {
-          delete obj[key];
-          continue;
-        }
-        obj[key] = value;
-      }
-      return obj;
-    }
     if (Array.isArray(replacer)) {
       const obj = {};
       for (const key in value) {
@@ -53,7 +41,16 @@ async function* objectGenerator(value, replacer) {
       }
       return obj;
     }
-    return value;
+    const obj = Object.assign({}, replacer.call(value, undefined, value));
+    for (const key in obj) {
+      const value = replacer.call(obj, key, obj[key]);
+      if (value === undefined || value instanceof Function) {
+        delete obj[key];
+        continue;
+      }
+      obj[key] = value;
+    }
+    return obj;
   })();
 
   const keys = Object.keys(obj);
