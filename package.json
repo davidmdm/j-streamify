@@ -2,15 +2,15 @@
   "name": "j-streamify",
   "version": "1.0.6",
   "description": "Used to stringify javascript objects to json strings as a stream",
-  "main": "index.js",
+  "main": "./src/index.js",
   "dependencies": {},
   "devDependencies": {
-    "chai": "^4.1.2",
-    "mocha": "^5.0.1",
-    "nyc": "^11.4.1"
+    "chai": "^4.2.0",
+    "mocha": "^7.1.1",
+    "nyc": "^15.0.1"
   },
   "scripts": {
-    "test": "find ./tests -type f -name '*.spec.js' | xargs nyc mocha -R spec --exit"
+    "test": "nyc mocha \"tests/**/*.spec.js\""
   },
   "keywords": [
     "json",
@@ -18,9 +18,27 @@
     "stringify"
   ],
   "author": "David Desmarais-Michaud",
-  "license": "ISC",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/davidmdm/j-streamify"
+  },
+  "nyc": {
+    "include": [
+      "src/**/*.js"
+    ],
+    "extension": [
+      ".js"
+    ],
+    "reporter": [
+      "html",
+      "text"
+    ],
+    "sourceMap": true,
+    "instrument": true
+  },
+  "mocha": {
+    "timeout": 5000,
+    "exit": true
   }
 }
