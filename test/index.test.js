@@ -3,10 +3,10 @@
 const { assert } = require('chai');
 const { Readable } = require('stream');
 
-const JStream = require('../src/index');
+const { jStream } = require('../src/index');
 
-const JStream2Promise = function readFromJStream(value, replacer) {
-  const stream = new JStream(value, replacer);
+const jStreamPromise = function readFromJStream(value, replacer) {
+  const stream = jStream(value, replacer);
   return new Promise((resolve, reject) => {
     let result = '';
     stream.on('data', (data) => (result += data));
@@ -18,31 +18,31 @@ const JStream2Promise = function readFromJStream(value, replacer) {
 describe('j-streamify tests', () => {
   describe('Primitive types', () => {
     it("number 1 should yield '1'", () => {
-      return JStream2Promise(1).then((result) => assert.equal(result, '1'));
+      return jStreamPromise(1).then((result) => assert.equal(result, '1'));
     });
 
     it("boolean true should yield 'true'", () => {
-      return JStream2Promise(true).then((result) => assert.equal(result, 'true'));
+      return jStreamPromise(true).then((result) => assert.equal(result, 'true'));
     });
 
     it('string "string" should yield \'"string"\'', () => {
-      return JStream2Promise('string').then((result) => assert.equal(result, '"string"'));
+      return jStreamPromise('string').then((result) => assert.equal(result, '"string"'));
     });
 
     it('undefined should not yield anything', () => {
-      return JStream2Promise(undefined).then((result) => assert.equal(result, ''));
+      return jStreamPromise(undefined).then((result) => assert.equal(result, ''));
     });
 
     it("null should yield 'null'", () => {
-      return JStream2Promise(null).then((result) => assert.equal(result, 'null'));
+      return jStreamPromise(null).then((result) => assert.equal(result, 'null'));
     });
 
     it("NaN should yield 'null'", () => {
-      return JStream2Promise(NaN).then((result) => assert.equal(result, 'null'));
+      return jStreamPromise(NaN).then((result) => assert.equal(result, 'null'));
     });
 
     it('functions should yield empty string', () => {
-      return JStream2Promise(function () {}).then((result) => assert.equal(result, ''));
+      return jStreamPromise(function () {}).then((result) => assert.equal(result, ''));
     });
   });
 
@@ -50,12 +50,12 @@ describe('j-streamify tests', () => {
     it('stringify value resolved by promise', () => {
       const value = 'a string to stringify';
       const promise = new Promise((resolve) => setTimeout(resolve, 10, value));
-      return JStream2Promise(promise).then((result) => assert.equal(result, JSON.stringify(value)));
+      return jStreamPromise(promise).then((result) => assert.equal(result, JSON.stringify(value)));
     });
 
     it('should emit error if promise fails', (done) => {
       const promise = new Promise((_, reject) => setTimeout(reject, 10, new Error('Promise failed')));
-      JStream2Promise(promise)
+      jStreamPromise(promise)
         .then(() => done(new Error('Should not resolve')))
         .catch((err) => assert.equal(err.message, 'Promise failed'))
         .then(() => done())
@@ -71,17 +71,17 @@ describe('j-streamify tests', () => {
         data.forEach((x) => stream.push(x));
         stream.push(null);
 
-        return JStream2Promise(stream).then((result) => assert.equal(result, JSON.stringify(data.join(''))));
+        return jStreamPromise(stream).then((result) => assert.equal(result, JSON.stringify(data.join(''))));
       });
 
       it('emits error if underlying readable stream does', (done) => {
         const stream = new Readable({
           read() {
-            this.emit('error', new Error('src stream error'));
+            setImmediate(() => this.emit('error', new Error('src stream error')));
           },
         });
 
-        JStream2Promise(stream)
+        jStreamPromise(stream)
           .then(() => done(new Error('Should fail when stream resource emits error')))
           .catch((err) => assert.equal(err.message, 'src stream error'))
           .then(() => done())
@@ -90,13 +90,14 @@ describe('j-streamify tests', () => {
     });
 
     describe('Object mode - true', () => {
-      it('Readable streams in objectMode', () => {
+      it('Readable streams in objectMode', async () => {
         const stream = new Readable({ objectMode: true });
         const data = [1, true, {}, '"string"', function () {}, undefined, NaN];
         data.forEach((x) => stream.push(x));
         stream.push(null);
 
-        return JStream2Promise(stream).then((result) => assert.equal(result, JSON.stringify(data)));
+        const result = await jStreamPromise(stream);
+        assert.equal(result, JSON.stringify(data));
       });
 
       it('with replacer', () => {
@@ -106,18 +107,18 @@ describe('j-streamify tests', () => {
         objects.forEach((x) => stream.push(x));
         stream.push(null);
 
-        return JStream2Promise(stream, ['a', 'b']).then((result) => assert.equal(result, JSON.stringify(expected)));
+        return jStreamPromise(stream, ['a', 'b']).then((result) => assert.equal(result, JSON.stringify(expected)));
       });
 
       it('emits error if underlying readable stream does', (done) => {
         const stream = new Readable({
           objectMode: true,
           read() {
-            this.emit('error', new Error('src stream error'));
+            setImmediate(() => this.emit('error', new Error('src stream error')));
           },
         });
 
-        JStream2Promise(stream)
+        jStreamPromise(stream)
           .then(() => done(new Error('Should fail when stream resource emits error')))
           .catch((err) => assert.equal(err.message, 'src stream error'))
           .then(() => done())
@@ -128,10 +129,10 @@ describe('j-streamify tests', () => {
 
   describe('Objects', () => {
     it('empty object should yield "{}"', () => {
-      return JStream2Promise({}).then((result) => assert.equal(result, '{}'));
+      return jStreamPromise({}).then((result) => assert.equal(result, '{}'));
     });
 
-    it('should stringify regular objects', () => {
+    it('should stringify regular objects', async () => {
       const object = {
         number: 1,
         boolean: true,
@@ -139,8 +140,8 @@ describe('j-streamify tests', () => {
         undefined: undefined,
         null: null,
       };
-
-      return JStream2Promise(object).then((result) => assert.equal(result, JSON.stringify(object)));
+      const result = await jStreamPromise(object);
+      assert.equal(result, JSON.stringify(object));
     });
 
     it('should ignore keys that contain functions', () => {
@@ -150,7 +151,7 @@ describe('j-streamify tests', () => {
         b: 2,
       };
 
-      return JStream2Promise(object).then((result) => assert.equal(result, JSON.stringify({ a: 1, b: 2 })));
+      return jStreamPromise(object).then((result) => assert.equal(result, JSON.stringify({ a: 1, b: 2 })));
     });
 
     it('should strinfify object containing streams and promises', () => {
@@ -172,7 +173,7 @@ describe('j-streamify tests', () => {
         promise: value,
       });
 
-      return JStream2Promise(object).then((result) => assert.equal(result, expectedObject));
+      return jStreamPromise(object).then((result) => assert.equal(result, expectedObject));
     });
 
     it('should use the object return by toJSON', () => {
@@ -187,18 +188,18 @@ describe('j-streamify tests', () => {
 
       const expected = JSON.stringify({ a: 1, b: 2 });
 
-      return JStream2Promise(obj).then((result) => assert.equal(result, expected));
+      return jStreamPromise(obj).then((result) => assert.equal(result, expected));
     });
   });
 
   describe('Arrays', () => {
     it('empty array should yield "[]"', () => {
-      return JStream2Promise([]).then((result) => assert.equal(result, '[]'));
+      return jStreamPromise([]).then((result) => assert.equal(result, '[]'));
     });
 
     it('should stringify regular arrays', () => {
       const array = [1, true, 'string', undefined, null, function () {}, NaN];
-      return JStream2Promise(array).then((result) => assert.equal(result, JSON.stringify(array)));
+      return jStreamPromise(array).then((result) => assert.equal(result, JSON.stringify(array)));
     });
 
     it('should stringify arrays containing streams and promises', () => {
@@ -213,7 +214,7 @@ describe('j-streamify tests', () => {
       const array = [stream, promise];
       const expected = JSON.stringify([data.join(''), value]);
 
-      return JStream2Promise(array).then((result) => assert.equal(result, expected));
+      return jStreamPromise(array).then((result) => assert.equal(result, expected));
     });
 
     it('should use the toJSON of the elemts', () => {
@@ -224,7 +225,7 @@ describe('j-streamify tests', () => {
 
       const expected = JSON.stringify([{ a: 1 }, { a: 2 }]);
 
-      return JStream2Promise(array).then((result) => assert.equal(result, expected));
+      return jStreamPromise(array).then((result) => assert.equal(result, expected));
     });
   });
 
@@ -232,7 +233,7 @@ describe('j-streamify tests', () => {
     describe('Array replacer', () => {
       it('partial match of keys and array', () => {
         const object = { a: 1, b: 2, c: 3 };
-        return JStream2Promise(object, ['a']).then((result) => assert.equal(result, JSON.stringify({ a: 1 })));
+        return jStreamPromise(object, ['a']).then((result) => assert.equal(result, JSON.stringify({ a: 1 })));
       });
 
       it('multiple levels deep', () => {
@@ -250,12 +251,12 @@ describe('j-streamify tests', () => {
           b: { a: 'nested' },
         });
 
-        return JStream2Promise(object, ['a', 'b']).then((result) => assert.equal(result, expected));
+        return jStreamPromise(object, ['a', 'b']).then((result) => assert.equal(result, expected));
       });
 
       it('No match of keys and arrays', async () => {
         const object = { a: 1, b: 2, c: 3 };
-        const result = await JStream2Promise(object, ['d', 'e', 'f']);
+        const result = await jStreamPromise(object, ['d', 'e', 'f']);
         assert.equal(result, '{}');
       });
     });
@@ -276,7 +277,7 @@ describe('j-streamify tests', () => {
           b: 4,
         });
 
-        return JStream2Promise(obj, replacer).then((result) => assert.equal(result, expected));
+        return jStreamPromise(obj, replacer).then((result) => assert.equal(result, expected));
       });
     });
   });
@@ -284,12 +285,12 @@ describe('j-streamify tests', () => {
   describe('Stringify array with a replacer', () => {
     it('should have no effect using a array replacer', () => {
       const array = ['a', 'b', 'c', undefined];
-      return JStream2Promise(array, ['d', 'e', 'f']).then((result) => assert.equal(result, JSON.stringify(array)));
+      return jStreamPromise(array, ['d', 'e', 'f']).then((result) => assert.equal(result, JSON.stringify(array)));
     });
 
     it('should modify error with a function replacer', async () => {
       const array = [1, 2, 3];
-      const result = await JStream2Promise(array, (key, value) => (key ? 2 * value : value));
+      const result = await jStreamPromise(array, (key, value) => (key ? 2 * value : value));
       assert.equal(result, JSON.stringify([2, 4, 6]));
     });
   });

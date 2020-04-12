@@ -10,7 +10,7 @@
     "nyc": "^15.0.1"
   },
   "scripts": {
-    "test": "nyc mocha \"tests/**/*.spec.js\""
+    "test": "nyc mocha \"test/**/*.test.js\""
   },
   "keywords": [
     "json",

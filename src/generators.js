@@ -3,24 +3,23 @@
 const { Readable } = require('stream');
 
 const { toJSON } = require('./util');
-const { ObjectReader } = require('./object.reader');
 
-function* arrayGenerator(jstream, value, replacer) {
+async function* arrayGenerator(value, replacer) {
   const arr =
     typeof replacer === 'function'
       ? replacer.call(value, '', value).map((x, i, a) => {
           const value = replacer.call(a, i.toString(), x);
-          if (value === undefined || value instanceof Function) {
+          if (value === undefined || typeof value === 'function') {
             return null;
           }
           return value;
         })
-      : value.map((x) => (x === undefined || x instanceof Function ? null : x));
+      : value.map((x) => (x === undefined || typeof x === 'function' ? null : x));
 
   yield '[';
 
   for (let i = 0; i < arr.length; i++) {
-    yield* jsonGenerator(jstream, toJSON(arr[i]), replacer);
+    yield* jsonGenerator(toJSON(arr[i]), replacer);
     if (i !== arr.length - 1) {
       yield ',';
     }
@@ -28,11 +27,8 @@ function* arrayGenerator(jstream, value, replacer) {
   yield ']';
 }
 
-function* objectGenerator(jstream, value, replacer) {
+async function* objectGenerator(value, replacer) {
   yield '{';
-
-  // As per JSON.stringify replacer param documentation, the replacer is called initially
-  // on the object itself as the value and undefined as the key.
 
   const obj = (() => {
     if (typeof replacer === 'function') {
@@ -47,7 +43,6 @@ function* objectGenerator(jstream, value, replacer) {
       }
       return obj;
     }
-
     if (Array.isArray(replacer)) {
       const obj = {};
       for (const key in value) {
@@ -58,14 +53,13 @@ function* objectGenerator(jstream, value, replacer) {
       }
       return obj;
     }
-
     return value;
   })();
 
   const keys = Object.keys(obj);
   for (let i = 0; i < keys.length; i++) {
     yield `"${keys[i]}":`;
-    yield* jsonGenerator(jstream, toJSON(obj[keys[i]]), replacer);
+    yield* jsonGenerator(toJSON(obj[keys[i]]), replacer);
     if (i !== keys.length - 1) {
       yield ',';
     }
@@ -73,44 +67,48 @@ function* objectGenerator(jstream, value, replacer) {
   yield '}';
 }
 
-function* jsonGenerator(jstream, value, replacer) {
+async function* jsonGenerator(value, replacer) {
   if (Array.isArray(value)) {
-    return yield* arrayGenerator(jstream, value, replacer);
+    return yield* arrayGenerator(value, replacer);
   }
 
   if (value instanceof Promise) {
-    jstream.pMode = true;
-    const resolved = yield value;
-    jstream.pMode = false;
-    return yield* jsonGenerator(jstream, resolved, replacer);
+    return yield* jsonGenerator(await value, replacer);
   }
 
   if (value instanceof Readable) {
     if (value.readableObjectMode) {
-      jstream.src = new ObjectReader(value, replacer);
-      jstream.src.once('end', () => {
-        jstream.src = null;
-        jstream._read();
-      });
-      jstream.src.once('error', (err) => jstream.emit('error', err));
       yield '[';
+      let first = true;
+      for await (const elem of value) {
+        if (first) {
+          first = false;
+        } else {
+          yield ',';
+        }
+        if (elem === undefined || typeof elem === 'function') {
+          yield 'null';
+        } else {
+          yield* jsonGenerator(elem, replacer);
+        }
+      }
       yield ']';
     } else {
-      value.once('end', () => {
-        jstream.src = null;
-        jstream._read();
-      });
-      value.once('error', (err) => jstream.emit('error', err));
-      jstream.src = value;
       yield '"';
+      for await (const chunk of value) {
+        yield JSON.stringify(chunk.toString()).slice(1, -1);
+      }
       yield '"';
     }
-
     return;
   }
 
   if (typeof value === 'object' && value !== null) {
-    return yield* objectGenerator(jstream, value, replacer);
+    return yield* objectGenerator(value, replacer);
+  }
+
+  if (value === undefined || typeof value === 'function') {
+    return;
   }
 
   yield JSON.stringify(value);

@@ -1,7 +1,8 @@
 'use strict';
 
 function toJSON(value) {
-  return value && typeof value.toJSON === 'function' ? value.toJSON() : value;
+  const ret = value && typeof value.toJSON === 'function' ? value.toJSON() : value;
+  return ret;
 }
 
 module.exports = { toJSON };
